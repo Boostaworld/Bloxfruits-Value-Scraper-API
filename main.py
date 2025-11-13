@@ -70,12 +70,23 @@ def fetch_group_rarity(session, group, rarity, limit=LIMIT):
         data = get_json(session, url, params={"limit": limit, "page": page})
         if not data:
             break
-        items = data.get("items") if isinstance(data, dict) else data
+
+        items = data
+        pagination = {}
+        if isinstance(data, dict):
+            items_field = data.get("items")
+            if isinstance(items_field, dict):
+                items = items_field.get("items") or items_field.get("docs")
+                pagination = data.get("pagination") or items_field.get("pagination") or {}
+            else:
+                items = items_field
+                pagination = data.get("pagination") or {}
+
         if not isinstance(items, list) or not items:
             break
         out.extend(items)
 
-        pg = data.get("pagination", {}) if isinstance(data, dict) else {}
+        pg = pagination if isinstance(pagination, dict) else {}
         has_more = bool(pg.get("hasMore")) or (pg.get("page", 1) < pg.get("totalPages", 1))
         if not has_more:
             break
