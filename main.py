@@ -75,12 +75,13 @@ def fetch_group_rarity(session, group, rarity, limit=LIMIT):
         pagination = {}
         if isinstance(data, dict):
             items_field = data.get("items")
+            pagination = data.get("pagination")
             if isinstance(items_field, dict):
                 items = items_field.get("items") or items_field.get("docs")
-                pagination = data.get("pagination") or items_field.get("pagination") or {}
+                pagination = pagination or items_field.get("pagination") or {}
             else:
                 items = items_field
-                pagination = data.get("pagination") or {}
+                pagination = pagination or {}
 
         if not isinstance(items, list) or not items:
             break
