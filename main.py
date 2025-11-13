@@ -70,12 +70,64 @@ def fetch_group_rarity(session, group, rarity, limit=LIMIT):
         data = get_json(session, url, params={"limit": limit, "page": page})
         if not data:
             break
-        items = data.get("items") if isinstance(data, dict) else data
-        if not isinstance(items, list) or not items:
+
+        def find_items_list(payload):
+            if isinstance(payload, list):
+                return payload
+            if not isinstance(payload, dict):
+                return None
+            for key in ("items", "docs", "data", "results", "list"):
+                value = payload.get(key)
+                if isinstance(value, list):
+                    return value
+            for key in ("items", "docs", "data", "results", "list"):
+                value = payload.get(key)
+                if isinstance(value, dict):
+                    nested = find_items_list(value)
+                    if isinstance(nested, list):
+                        return nested
+            for value in payload.values():
+                if isinstance(value, list):
+                    return value
+            for value in payload.values():
+                if isinstance(value, dict):
+                    nested = find_items_list(value)
+                    if isinstance(nested, list):
+                        return nested
+            return None
+
+        def find_pagination_dict(payload):
+            if not isinstance(payload, dict):
+                return None
+            pg = payload.get("pagination")
+            if isinstance(pg, dict):
+                return pg
+            for key in ("items", "data", "docs", "results", "list"):
+                value = payload.get(key)
+                if isinstance(value, dict):
+                    nested_pg = find_pagination_dict(value)
+                    if isinstance(nested_pg, dict):
+                        return nested_pg
+            for value in payload.values():
+                if isinstance(value, dict):
+                    nested_pg = find_pagination_dict(value)
+                    if isinstance(nested_pg, dict):
+                        return nested_pg
+            return None
+
+        items = find_items_list(data) if isinstance(data, dict) else data
+        pagination = find_pagination_dict(data) if isinstance(data, dict) else {}
+        if pagination is None:
+            pagination = {}
+
+        if not isinstance(items, list):
+            print(f"[warn] unexpected payload for {group}/{rarity} page {page}")
+            break
+        if not items:
             break
         out.extend(items)
 
-        pg = data.get("pagination", {}) if isinstance(data, dict) else {}
+        pg = pagination if isinstance(pagination, dict) else {}
         has_more = bool(pg.get("hasMore")) or (pg.get("page", 1) < pg.get("totalPages", 1))
         if not has_more:
             break
